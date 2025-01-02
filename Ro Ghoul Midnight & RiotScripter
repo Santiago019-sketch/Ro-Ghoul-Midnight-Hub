@@ -1,40 +1,23 @@
--- Midnight Hub | Ro-Ghoul Autofarm
--- Created by Midnight Development Team
-
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
-
-local Window = Rayfield:CreateWindow({
-    Name = "Midnight Hub | Ro-Ghoul",
-    LoadingTitle = "Midnight Hub Loading...",
-    LoadingSubtitle = "by Midnight Development Team",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "MidnightConfig",
-        FileName = "RoGhoul"
-    }
+-- Load GUI
+local gui = loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/z4gs/scripts/master/testtttt.lua"))():AddWindow("Ro-Ghoul", {
+    main_color = Color3.fromRGB(0,0,0),
+    min_size = Vector2.new(373, 340),
+    can_resize = false
 })
 
--- Services
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
+-- Initialize Services and Variables
+local get = setmetatable({}, {
+    __index = function(a, b)
+        return game:GetService(b) or game[b]
+    end
+})
 
--- Variables
-local Player = Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local PlayerFolder = Player:WaitForChild("PlayerFolder")
-local Team = PlayerFolder.Customization.Team.Value
-local Remotes = ReplicatedStorage.Remotes
+local player = get.Players.LocalPlayer
+local camera = workspace.CurrentCamera
 
--- Settings
-local Settings = {
-    AutoFarm = false,
-    Skills = {
-        E = false,
-        F = false,
-        C = false,
-        R = false
-    },
+local remotes = get.ReplicatedStorage.Remotes
+local myData = loadstring(game:HttpGet("https://raw.githubusercontent.com/z4gs/scripts/master/Settings.lua"))()("Ro-Ghoul Autofarm", {
+    Skills = {E = false, F = false, C = false, R = false},
     Boss = {
         ["Gyakusatsu"] = false,
         ["Eto Yoshimura"] = false,
@@ -46,120 +29,96 @@ local Settings = {
     TeleportSpeed = 150,
     ReputationFarm = false,
     ReputationCashout = false,
-    Stage = "One",
-    Target = nil
+    AutoKickWhitelist = ""
+})
+
+local array = {
+    boss = {
+        ["Gyakusatsu"] = 1250,
+        ["Eto Yoshimura"] = 1250,
+        ["Koutarou Amon"] = 750,
+        ["Nishiki Nishio"] = 250
+    },
+    npcs = {["Aogiri Members"] = "GhoulSpawns", Investigators = "CCGSpawns", Humans = "HumanSpawns"},
+    stages = {"One", "Two", "Three", "Four", "Five", "Six"},
+    skills = {
+        E = player.PlayerFolder.Special1CD,
+        F = player.PlayerFolder.Special3CD,
+        C = player.PlayerFolder.SpecialBonusCD,
+        R = player.PlayerFolder.Special2CD
+    }
 }
 
--- Stats Tab
-local StatsTab = Window:CreateTab("Stats")
-local FarmingStats = StatsTab:CreateSection("Farming Statistics")
+local labels = {}
 
-local Labels = {
-    Quest = StatsTab:CreateLabel("Current Quest: None"),
-    Yen = StatsTab:CreateLabel("Yen: 0"),
-    RC = StatsTab:CreateLabel("RC: 0"),
-    Kills = StatsTab:CreateLabel("Kills: 0")
-}
-
--- Main Tab
-local MainTab = Window:CreateTab("Main")
-local Farming = MainTab:CreateSection("Farming")
-
-MainTab:CreateDropdown({
-    Name = "Target",
-    Options = {"Aogiri Members", "Investigators", "Humans"},
-    CurrentOption = "",
-    Flag = "Target",
-    Callback = function(Option)
-        Settings.Target = Option
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Auto Farm",
-    CurrentValue = false,
-    Flag = "AutoFarm",
-    Callback = function(Value)
-        Settings.AutoFarm = Value
-        if Value then
-            StartFarming()
-        end
-    end
-})
-
--- Farm Options Tab
-local OptionsTab = Window:CreateTab("Options")
-local FarmOptions = OptionsTab:CreateSection("Farming Options")
-
-OptionsTab:CreateToggle({
-    Name = "Reputation Farm",
-    CurrentValue = false,
-    Flag = "RepFarm",
-    Callback = function(Value)
-        Settings.ReputationFarm = Value
-    end
-})
-
-for BossName, _ in pairs(Settings.Boss) do
-    OptionsTab:CreateToggle({
-        Name = BossName .. " Boss Farm",
-        CurrentValue = false,
-        Flag = BossName .. "Boss",
-        Callback = function(Value)
-            Settings.Boss[BossName] = Value
-        end
-    })
-end
-
--- Functions
-local function GetKey()
-    local Key
-    for _, v in pairs(getgc(true)) do
-        if type(v) == "function" and debug.getinfo(v).source:find(".ClientControl") then
-            for i, const in pairs(debug.getconstants(v)) do
-                if const == "KeyEvent" then
-                    Key = debug.getconstant(v, i + 1)
-                    if #Key >= 100 then
-                        return Key
-                    end
+-- Define Labels
+labels = setmetatable({
+    text = {label = gui:AddLabel("")},
+    tfarm = {label = gui:AddLabel("")},
+    space = {label = gui:AddLabel("")},
+    Quest = {prefix = "Current Quest: ", label = gui:AddLabel("Current Quest: None")},
+    Yen = {prefix = "Yen: ", label = gui:AddLabel("Yen: 0"), value = 0, oldval = player.PlayerFolder.Stats.Yen.Value},
+    RC = {prefix = "RC: ", label = gui:AddLabel("RC: 0"), value = 0, oldval = player.PlayerFolder.Stats.RC.Value},
+    Kills = {prefix = "Kills: ", label = gui:AddLabel("Kills: 0"), value = 0} 
+}, {
+    __call = function(self, typ, newv, oldv)
+        if typ and newv then
+            local object = self[typ]
+            if type(newv) == "number" then
+                object.value = object.value + newv
+                object.label.Text = object.prefix..format(object.value)
+                if oldv then
+                    object.oldval = oldv
                 end
+            elseif object.prefix then
+                object.label.Text = object.prefix..newv
+            else
+                object.label.Text = newv
+            end
+        else
+            for i,v in pairs(labels) do
+                v.value = 0
+                v.label.Text = v.prefix.."0"
             end
         end
     end
+})
+
+-- Format Function
+local function format(number)
+    local i, k, j = tostring(number):match("(%-?%d?)(%d*)(%.?.*)")
+    return i..k:reverse():gsub("(%d%d%d)", "%1,"):reverse()..j
 end
 
-local function TeleportTo(Position)
-    local RootPart = Character:WaitForChild("HumanoidRootPart")
-    local Distance = (RootPart.Position - Position.p).Magnitude
-    local Time = Distance / Settings.TeleportSpeed
-    
-    local Tween = TweenService:Create(RootPart, 
-        TweenInfo.new(Time, Enum.EasingStyle.Linear),
-        {CFrame = Position}
+-- TP Function
+local function tp(pos)
+    local val = Instance.new("CFrameValue")
+    val.Value = player.Character.HumanoidRootPart.CFrame
+
+    local tween = game:GetService("TweenService"):Create(
+        val,
+        TweenInfo.new((player.Character.HumanoidRootPart.Position - pos.p).magnitude / myData.TeleportSpeed, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0),
+        {Value = pos}
     )
-    Tween:Play()
-    return Tween.Completed
+
+    tween:Play()
+    tween.Completed:Wait()
+    player.Character.HumanoidRootPart.CFrame = val.Value
+    val:Destroy()
 end
 
-local function StartFarming()
-    local Key = GetKey()
-    if not Key then
-        Rayfield:Notify({
-            Title = "Error",
-            Content = "Failed to get remote key",
-            Duration = 5
-        })
-        return
-    end
-
-    while Settings.AutoFarm do
+-- Autofarm Logic
+while true do
+    if array.autofarm then
         pcall(function()
-            -- Farming logic implementation here
-            -- This includes NPC targeting, combat, and collection
-            wait()
+            local npc = getNPC()
+            if npc then
+                tp(npc.HumanoidRootPart.CFrame + npc.HumanoidRootPart.CFrame.lookVector * myData.DistanceFromNpc)
+                labels("text", "Killing: "..npc.Name)
+            else
+                labels("text", "No target found, waiting...")
+            end
         end)
     end
+    wait(1)
 end
-
--- Initialize
-Rayfield:LoadConfiguration()
