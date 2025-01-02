@@ -1,0 +1,165 @@
+-- Midnight Hub | Ro-Ghoul Autofarm
+-- Created by Midnight Development Team
+
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Midnight Hub | Ro-Ghoul",
+    LoadingTitle = "Midnight Hub Loading...",
+    LoadingSubtitle = "by Midnight Development Team",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "MidnightConfig",
+        FileName = "RoGhoul"
+    }
+})
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+-- Variables
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local PlayerFolder = Player:WaitForChild("PlayerFolder")
+local Team = PlayerFolder.Customization.Team.Value
+local Remotes = ReplicatedStorage.Remotes
+
+-- Settings
+local Settings = {
+    AutoFarm = false,
+    Skills = {
+        E = false,
+        F = false,
+        C = false,
+        R = false
+    },
+    Boss = {
+        ["Gyakusatsu"] = false,
+        ["Eto Yoshimura"] = false,
+        ["Koutarou Amon"] = false,
+        ["Nishiki Nishio"] = false
+    },
+    DistanceFromNpc = 5,
+    DistanceFromBoss = 8,
+    TeleportSpeed = 150,
+    ReputationFarm = false,
+    ReputationCashout = false,
+    Stage = "One",
+    Target = nil
+}
+
+-- Stats Tab
+local StatsTab = Window:CreateTab("Stats")
+local FarmingStats = StatsTab:CreateSection("Farming Statistics")
+
+local Labels = {
+    Quest = StatsTab:CreateLabel("Current Quest: None"),
+    Yen = StatsTab:CreateLabel("Yen: 0"),
+    RC = StatsTab:CreateLabel("RC: 0"),
+    Kills = StatsTab:CreateLabel("Kills: 0")
+}
+
+-- Main Tab
+local MainTab = Window:CreateTab("Main")
+local Farming = MainTab:CreateSection("Farming")
+
+MainTab:CreateDropdown({
+    Name = "Target",
+    Options = {"Aogiri Members", "Investigators", "Humans"},
+    CurrentOption = "",
+    Flag = "Target",
+    Callback = function(Option)
+        Settings.Target = Option
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Auto Farm",
+    CurrentValue = false,
+    Flag = "AutoFarm",
+    Callback = function(Value)
+        Settings.AutoFarm = Value
+        if Value then
+            StartFarming()
+        end
+    end
+})
+
+-- Farm Options Tab
+local OptionsTab = Window:CreateTab("Options")
+local FarmOptions = OptionsTab:CreateSection("Farming Options")
+
+OptionsTab:CreateToggle({
+    Name = "Reputation Farm",
+    CurrentValue = false,
+    Flag = "RepFarm",
+    Callback = function(Value)
+        Settings.ReputationFarm = Value
+    end
+})
+
+for BossName, _ in pairs(Settings.Boss) do
+    OptionsTab:CreateToggle({
+        Name = BossName .. " Boss Farm",
+        CurrentValue = false,
+        Flag = BossName .. "Boss",
+        Callback = function(Value)
+            Settings.Boss[BossName] = Value
+        end
+    })
+end
+
+-- Functions
+local function GetKey()
+    local Key
+    for _, v in pairs(getgc(true)) do
+        if type(v) == "function" and debug.getinfo(v).source:find(".ClientControl") then
+            for i, const in pairs(debug.getconstants(v)) do
+                if const == "KeyEvent" then
+                    Key = debug.getconstant(v, i + 1)
+                    if #Key >= 100 then
+                        return Key
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function TeleportTo(Position)
+    local RootPart = Character:WaitForChild("HumanoidRootPart")
+    local Distance = (RootPart.Position - Position.p).Magnitude
+    local Time = Distance / Settings.TeleportSpeed
+    
+    local Tween = TweenService:Create(RootPart, 
+        TweenInfo.new(Time, Enum.EasingStyle.Linear),
+        {CFrame = Position}
+    )
+    Tween:Play()
+    return Tween.Completed
+end
+
+local function StartFarming()
+    local Key = GetKey()
+    if not Key then
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "Failed to get remote key",
+            Duration = 5
+        })
+        return
+    end
+
+    while Settings.AutoFarm do
+        pcall(function()
+            -- Farming logic implementation here
+            -- This includes NPC targeting, combat, and collection
+            wait()
+        end)
+    end
+end
+
+-- Initialize
+Rayfield:LoadConfiguration()
